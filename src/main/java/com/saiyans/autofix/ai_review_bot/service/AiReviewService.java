@@ -14,6 +14,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class AiReviewService {
 
     private static final Logger log = LoggerFactory.getLogger(AiReviewService.class);
+    
+    private static final Logger llmLogger = LoggerFactory.getLogger("LLM_LOGGER");
 
     private final WebClient webClient;
 
@@ -34,7 +36,7 @@ public class AiReviewService {
                         Map.of("role", "user", "content", prompt)
                 )
         );
-
+        llmLogger.info("=== LLM Request ===\n" + request);
         try {
             return webClient.post()
                     .bodyValue(request)
@@ -45,6 +47,7 @@ public class AiReviewService {
                     .map(resp -> {
                         List<Map<String, Object>> choices = (List<Map<String, Object>>) resp.get("choices");
                         Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                        llmLogger.info("=== LLM response ===\n" + message);
                         return (String) message.get("content");
                     })
                     .block();

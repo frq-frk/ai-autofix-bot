@@ -16,6 +16,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
@@ -103,41 +104,44 @@ public class GitHubService {
     }
 
     private String applySuggestedFix(String originalContent, String suggestedFix) {
-        List<String> removedLines = new ArrayList<>();
-        List<String> addedLines = new ArrayList<>();
+        List<String> lines = Arrays.asList(suggestedFix.split("\n"));
+        String updatedContent = originalContent;
 
-        // Split the fix into lines and sort into removed/added lists
-        for (String line : suggestedFix.split("\n")) {
-            line = line.trim();
+        String currentRemoved = null;
+        List<String> currentAdded = new ArrayList<>();
+
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+
             if (line.startsWith("[-]")) {
-                removedLines.add(line.substring(4).trim());
+                // Process previous group if exists
+                if (currentRemoved != null) {
+                    updatedContent = replaceLine(updatedContent, currentRemoved, currentAdded);
+                    currentAdded.clear();
+                }
+
+                currentRemoved = line.substring(4).trim();
             } else if (line.startsWith("[+]")) {
-                addedLines.add(line.substring(4).trim());
+                currentAdded.add(line.substring(4).trim());
             }
         }
 
-        // Validation
-        if (removedLines.size() != addedLines.size()) {
-        	log.info("Invalid AI suggestion: mismatch in number of [-] and [+] lines.");
-            return originalContent;
-        }
-
-        String updatedContent = originalContent;
-
-        for (int i = 0; i < removedLines.size(); i++) {
-            String originalLine = removedLines.get(i);
-            String improvedLine = addedLines.get(i);
-
-            if (updatedContent.contains(originalLine)) {
-                updatedContent = updatedContent.replace(originalLine, improvedLine);
-            } 
-//            else {
-//                // fallback comment if line not found
-//                updatedContent += String.format("\n// Unable to replace: [%s] → [%s]", originalLine, improvedLine);
-//            }
+        // Process last group
+        if (currentRemoved != null) {
+            updatedContent = replaceLine(updatedContent, currentRemoved, currentAdded);
         }
 
         return updatedContent;
+    }
+
+    private String replaceLine(String content, String toRemove, List<String> toAdd) {
+        if (content.contains(toRemove)) {
+            String replacement = String.join("\n", toAdd);
+            return content.replace(toRemove, replacement);
+        } else {
+            log.info("Line not found in content: " + toRemove);
+            return content; // or optionally append a comment about failure
+        }
     }
 
     private void commitFix(PushEvent event, String filePath, String updatedContent, String sha, String branch) {
