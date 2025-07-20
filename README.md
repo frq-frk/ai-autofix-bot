@@ -16,12 +16,8 @@ A lightweight and extensible Spring Boot service that reviews Git diff patches u
 ---
 
 ## 📦 API Overview
+- API is not exposed directly to the clients but instead is used in a github app as web hook url.
+- So to use the app install the github app provide access to the repo to the app.
 
-### `POST /review/fix`
+## [GITHUB APP URL](https://github.com/settings/apps/saiyasn-autofix-ai-code-review-bot)
 
-- **Description**: Sends a diff patch and gets suggested improvements from AI.
-- **Request Body**:
-```json
-{
-"patch": "Git-style diff string"
-}
